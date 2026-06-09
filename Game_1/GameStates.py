@@ -6,7 +6,9 @@ Created on Mon Jun  8 16:15:32 2026
 """
 
 import pygame
+from DungeonFactory import DungeonFactory
 from GameUI import Button
+from DungeonRenderer import DungeonRenderer
 
 # Globals
 SCREEN_WIDTH = 1000
@@ -282,18 +284,27 @@ class ExecutionState(GameState):
         self.font = pygame.font.SysFont(None, 36)
         pygame.display.set_caption("Execution State")
         
-    def handle_events(self, events):
+        # Link DungeonRenderer
+        self.dungeon = None
+        self.dungeon_renderer = DungeonRenderer(self.game.screen)
         
-        global BACK_SELECT
+    def handle_events(self, events):
         
         # Parse event queue and handle
         for event in events:
             # IF key pressed is ESC, push GameMenuState on top of execution state
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 self.game.state_manager.push_state(GameMenuState(self.game))
+            
+            # IF key pressed is D, generate a dungeon
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_d:
+                self.dungeon = DungeonFactory().create_dungeon()
                 
     def draw(self, screen):
         background_selector(screen)
+
+        if self.dungeon is not None:
+            self.dungeon_renderer.draw(self.dungeon)
 
 
 class GameMenuState(GameState):
