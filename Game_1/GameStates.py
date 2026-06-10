@@ -9,10 +9,9 @@ import pygame
 from DungeonFactory import DungeonFactory
 from GameUI import Button
 from DungeonRenderer import DungeonRenderer
+from GameConfig import SCREEN_WIDTH, SCREEN_HEIGHT
 
 # Globals
-SCREEN_WIDTH = 1000
-SCREEN_HEIGHT = 750
 LIGHT_BLUE = (173, 216, 230)
 LIGHT_GREEN = (180, 255, 180)
 BACK_SELECT = 0

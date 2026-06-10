@@ -10,11 +10,9 @@ Created on Mon Jun  8 15:27:01 2026
 import sys
 import pygame
 from GameStates import MainMenuState
+from GameConfig import SCREEN_WIDTH, SCREEN_HEIGHT
 
-SCREEN_WIDTH = 1000
-SCREEN_HEIGHT = 750
 FPS = 60
-
 
 # Middle man between Game and States
 # Can act as global behavior for states as well

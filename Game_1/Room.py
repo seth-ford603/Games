@@ -28,8 +28,8 @@ class Room:
     # Rooms are drawn from center to center so these functions make measurment easier
     @property
     def center_x(self):
-        return self.x + self.width // 2
+        return self.x + self.width / 2
 
     @property
     def center_y(self):
-        return self.y + self.height // 2
+        return self.y + self.height / 2

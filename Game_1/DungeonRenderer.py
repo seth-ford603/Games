@@ -6,17 +6,21 @@ Created on Tue Jun  9 16:18:08 2026
 """
 
 import pygame
-
+from GameConfig import TILE_SIZE, DUNGEON_OFFSET_X, DUNGEON_OFFSET_Y
 
 class DungeonRenderer:
     # Startup
     def __init__(self, screen):
         self.screen = screen
         
+        # Font support
+        self.font = pygame.font.SysFont(None, 20)
+        self.text_color = (255, 255, 255)
+        
         # Scalars/offsets
-        self.tile_size = 40
-        self.offset_x = 100
-        self.offset_y = 100
+        self.tile_size = TILE_SIZE
+        self.offset_x = DUNGEON_OFFSET_X
+        self.offset_y = DUNGEON_OFFSET_Y
 
         self.room_color = (80, 80, 80)
         self.current_room_color = (120, 160, 255)
@@ -43,6 +47,21 @@ class DungeonRenderer:
             # Draw the squares with their borders
             pygame.draw.rect(self.screen, color, rect)
             pygame.draw.rect(self.screen, self.border_color, rect, 2)
+            
+            # Draw roomtype
+            # Render: creates a small surface with text 
+            #   room.room_type: the text
+            #   anti-aliasing True:smoothed false: more blocky
+            #   text color
+            text_surface = self.font.render(room.room_type, True, self.text_color)
+            
+            # This creates a rectangle around the text image.
+            text_rect = text_surface.get_rect(center=rect.center)
+            
+            # Draw it to the screen
+            # text_surface: text image
+            # text_rect : the location defined by a rect
+            self.screen.blit(text_surface, text_rect)
 
     def draw_connections(self, dungeon):
         # Empty set to remember which connections have already been drawn
