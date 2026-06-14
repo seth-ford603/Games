@@ -12,64 +12,140 @@ from GameConfig import SCREEN_WIDTH, SCREEN_HEIGHT, TILE_SIZE, DUNGEON_OFFSET_X,
 
 
 class DungeonGenerator:
+    
     # Returns a Dungeon object
     def generate(self, theme="standard"):
         # Loop until a dungeon is returned without overlapping rooms
         rooms = self.create_random_rooms()
         return Dungeon(rooms, "start")
 
-    # Randomizes the rooms height, width, and location
+    # Randomizes the rooms height, width, and location. Add them to a list we can use
     def create_random_rooms(self):
+        # Create room list
         rooms = {}
-        
-        num_rooms = random.randint(3, 7)
-        
-        # Create rooms
+    
+        # Establish path length and number of branches randomly
+        main_path_length = random.randint(3, 7)
+        branch_count = random.randint(2, 4)
+    
+        # Create start room and add it to the list
         start_room = self.create_room_at_random_valid_location("start", "start", rooms)
         rooms[start_room.room_id] = start_room
-        
-        # Set previous room for linear connection loop
+    
+        # Create the main path of rooms
+        main_path_rooms = self.create_main_path(start_room, main_path_length, rooms)
+    
+        # If the room list is empty, restart
+        if main_path_rooms is None:
+            return self.create_random_rooms()
+    
+        # Create branches
+        branches_created = self.create_branches(branch_count, rooms)
+    
+        # If brannches DNE, restart.
+        if branches_created == False:
+            return self.create_random_rooms()
+    
+        # Assign the boss room
+        self.assign_boss_room(start_room)
+    
+        # Return list of rooms
+        return rooms
+    
+    # Create the main dungeon path
+    def create_main_path(self, start_room, main_path_length, rooms):
+        # Create linkage between rooms
         previous_room = start_room
-        
-        # Loop through room creation
-        for room_number in range(1, num_rooms):
-            # Create room id
+        main_path_rooms = [start_room]
+    
+        # For each room between 1 and max number of rooms.
+        for room_number in range(1, main_path_length):
+            # Create the room ID and room type
             room_id = "room_" + str(room_number)
             room_type = self.get_random_room_type()
     
-            # Create the room, but at a valid location
-            new_room = self.create_room_at_random_valid_location(room_id, room_type, rooms)
+            # Create the room
+            new_room = self.create_room_at_random_valid_location(room_id, room_type, rooms, previous_room)
     
-            # Restart if we've entered a state that is impossible to add a room
+            # If room is empty, return empty room
             if new_room is None:
-                return self.create_random_rooms()
+                return None
     
-            # Connect rooms linearly
+            # Move linkage forward one
             previous_room.connect(new_room)
-    
-            # Add room to list
             rooms[new_room.room_id] = new_room
-            
-            # Restart if we've entered a state that has a connection overlap a room
-            if self.has_connection_intersections(rooms):
-                return self.create_random_rooms()
-            
-            # Rest prev room for next loop iteration
+    
+            # Verify this room does not have connections that intersect with another room
+            # Exit and restart if so by returning none
+            if self.connection_intersects_room(rooms):
+                return None
+    
+            # Verify this room does not have connections that intersect with another connection
+            # Exit and restart if so by returning none
+            if self.connection_intersects_connection(previous_room, new_room, rooms):
+                return None
+    
+            # Add the room to the main path
+            main_path_rooms.append(new_room)
+            # Increment linkage
             previous_room = new_room
     
-        # Assign boss room
-        self.assign_boss_room(start_room)
+        # Return main path of rooms
+        return main_path_rooms
     
-        return rooms
+    # Add branches to the main dungeon path
+    def create_branches(self, branch_count, rooms):
+        # Create counter to track max rooms
+        next_room_number = len(rooms)
+    
+        # For each branch to be created
+        for branch_number in range(branch_count):
+            # Identify a possible parent list
+            possible_parent_rooms = list(rooms.values())
+    
+            # Select one randomly
+            parent_room = random.choice(possible_parent_rooms)
+    
+            # Create a room id and room type
+            room_id = "room_" + str(next_room_number)
+            room_type = self.get_random_room_type()
+    
+            # Add the room to a valid location
+            branch_room = self.create_room_at_random_valid_location(room_id, room_type, rooms, parent_room)
+    
+            # If branch cannot be created, restart by returning false
+            if branch_room is None:
+                return False
+    
+            # Create linkage between room and parent. Add it to the list
+            parent_room.connect(branch_room)
+            rooms[branch_room.room_id] = branch_room
+    
+            # Verify this room does not have connections that intersect with another room
+            # Exit and restart if so by returning false
+            if self.connection_intersects_room(rooms):
+                return False
+    
+            # Verify this room does not have connections that intersect with another connection
+            # Exit and restart if so by returning false
+            if self.connection_intersects_connection(parent_room, branch_room, rooms):
+                return False
+    
+            # Increment number of rooms
+            next_room_number += 1
+    
+        # Signal successful branch creation
+        return True
 
-    def create_room_at_random_valid_location(self, room_id, room_type, rooms):
+    # Adds a room to the canvas where there is not already a room.
+    def create_room_at_random_valid_location(self, room_id, room_type, rooms, parent_room=None):
         # Detect the screen, determine max x and y dependent on screen 
         max_x = (SCREEN_WIDTH - DUNGEON_OFFSET_X) // TILE_SIZE
         max_y = (SCREEN_HEIGHT - DUNGEON_OFFSET_Y) // TILE_SIZE
     
-        # Random widths and heights
-        width = random.randint(1, 5)
-        height = random.randint(1, 5)
+        # Room width and height
+        width = random.randint(2, 5)
+        height = random.randint(2, 5)
     
         # List of valid locations
         valid_locations = []
@@ -77,10 +153,14 @@ class DungeonGenerator:
         # Loop through all possible locations and add it to the list if valid
         for x in range(0, max_x - width + 1):
             for y in range(0, max_y - height + 1):
+                # Create random room at random location
                 test_room = Room(room_id, room_type, x, y, width, height)
     
+                # Verify location is valid
                 if self.room_location_is_valid(test_room, rooms):
-                    valid_locations.append((x, y))
+                    # Verify new room is within valid distance (except start room which will have none as parent)
+                    if parent_room is None or self.room_is_valid_distance_from_parent(test_room, parent_room):
+                        valid_locations.append((x, y))
     
         # Exit if there are no valid locs
         if len(valid_locations) == 0:
@@ -94,12 +174,18 @@ class DungeonGenerator:
     
     # Returns true if a rooms location is valid
     def room_location_is_valid(self, test_room, rooms):
+        # Check for connection overlap
         if self.room_is_clipped(test_room):
             return False
     
+        # Check for room overlaps
         for existing_room in rooms.values():
             if self.rooms_overlap(test_room, existing_room):
                 return False
+    
+        # Check for close distances with other rooms
+        if self.room_is_minimum_distance_from_all_rooms(test_room, rooms) == False:
+            return False
     
         return True
 
@@ -138,6 +224,7 @@ class DungeonGenerator:
     
     # Returns false if two rects overlaps with screen edge
     def room_is_clipped(self, room):
+        # Convert locations to pixels
         screen_x = DUNGEON_OFFSET_X + room.x * TILE_SIZE
         screen_y = DUNGEON_OFFSET_Y + room.y * TILE_SIZE
         screen_width = room.width * TILE_SIZE
@@ -213,7 +300,7 @@ class DungeonGenerator:
         boss_room.room_type = "boss"
 
     # Checks if there are any room intersections with a connection
-    def has_connection_intersections(self, rooms):
+    def connection_intersects_room(self, rooms):
         checked_connections = set()
     
         for room in rooms.values():
@@ -274,3 +361,141 @@ class DungeonGenerator:
                 return True
     
         return False
+    
+    # Checks if any connections for a room intersect with another
+    def connection_intersects_connection(self, room_a, room_b, rooms):
+        # For each room in our rooms list
+        for existing_room in rooms.values():
+            # For each connection in that room
+            for connected_room in existing_room.connections:
+    
+                # Do not compare the connection against itself
+                if existing_room == room_a and connected_room == room_b:
+                    continue
+    
+                if existing_room == room_b and connected_room == room_a:
+                    continue
+    
+                # Ignore connections that share an endpoint
+                if existing_room == room_a or existing_room == room_b:
+                    continue
+    
+                if connected_room == room_a or connected_room == room_b:
+                    continue
+    
+                # Check if the lines intersect
+                if self.lines_intersect(
+                    room_a.center_x,
+                    room_a.center_y,
+                    room_b.center_x,
+                    room_b.center_y,
+                    existing_room.center_x,
+                    existing_room.center_y,
+                    connected_room.center_x,
+                    connected_room.center_y
+                ):
+                    return True
+    
+        return False
+    
+    # Compares two lines. They intersect if their endpoints are on opposite sides of a line. 
+    # (If a line C-D bisects points A and B then there is an intersection)
+    def lines_intersect(self, a_x, a_y, b_x, b_y, c_x, c_y, d_x, d_y):
+        # Are A and B on opposite sides of line C-D?
+        position_1 = self.get_position(c_x, c_y, d_x, d_y, a_x, a_y)
+        position_2 = self.get_position(c_x, c_y, d_x, d_y, b_x, b_y)
+        # Are C and D on opposite sides of line A-B?
+        position_3 = self.get_position(a_x, a_y, b_x, b_y, c_x, c_y)
+        position_4 = self.get_position(a_x, a_y, b_x, b_y, d_x, d_y)
+    
+        # If positions are not the same, then an intersection exists
+        if position_1 != position_2 and position_3 != position_4:
+            return True
+    
+        return False
+    
+    # Gets the position of a point relative to a line.
+    # Two points that both return the same value are on the same side of the provided line.
+    def get_position(self, line_start_x, line_start_y, line_end_x, line_end_y, point_x, point_y):
+        value = (
+            (point_y - line_start_y) * (line_end_x - line_start_x)
+            - (line_end_y - line_start_y) * (point_x - line_start_x)
+        )
+    
+        if value > 0:
+            return 1
+    
+        if value < 0:
+            return -1
+    
+        return 0
+    
+    # Returns true if test_room location is with a donut shaped valid area for placement
+    # min_distance and max_distance control this valid area
+    def room_is_valid_distance_from_parent(self, test_room, parent_room):
+        # Set min/max distances
+        min_distance = 75
+        max_distance = 175
+    
+        # test_room.center_x returns the center of the test room in tiles
+        # We need to convert this to pixels to measure distance in pixels
+        test_center_x = DUNGEON_OFFSET_X + test_room.center_x * TILE_SIZE
+        test_center_y = DUNGEON_OFFSET_Y + test_room.center_y * TILE_SIZE
+    
+        parent_center_x = DUNGEON_OFFSET_X + parent_room.center_x * TILE_SIZE
+        parent_center_y = DUNGEON_OFFSET_Y + parent_room.center_y * TILE_SIZE
+    
+        # Find distance with pyth theorem
+        # For horiz and vert seperation
+        dx = test_center_x - parent_center_x
+        dy = test_center_y - parent_center_y
+    
+        # Square and add together then compare
+        distance_squared = dx * dx + dy * dy
+    
+        # Just square distance values for easier math
+        if distance_squared < min_distance * min_distance:
+            return False
+    
+        if distance_squared > max_distance * max_distance:
+            return False
+    
+        return True
+    
+    # Returns false if test room is too close to any other room by checking room edges
+    def room_is_minimum_distance_from_all_rooms(self, test_room, rooms):
+        min_distance = 5
+    
+        for existing_room in rooms.values():
+            if self.rooms_are_too_close(test_room, existing_room, min_distance):
+                return False
+    
+        return True
+    
+    # Returns false if two rooms are too close
+    def rooms_are_too_close(self, room_a, room_b, min_distance):
+        # Convert sides to pixel locations
+        a_left = DUNGEON_OFFSET_X + room_a.x * TILE_SIZE
+        a_right = DUNGEON_OFFSET_X + (room_a.x + room_a.width) * TILE_SIZE
+        a_top = DUNGEON_OFFSET_Y + room_a.y * TILE_SIZE
+        a_bottom = DUNGEON_OFFSET_Y + (room_a.y + room_a.height) * TILE_SIZE
+    
+        b_left = DUNGEON_OFFSET_X + room_b.x * TILE_SIZE
+        b_right = DUNGEON_OFFSET_X + (room_b.x + room_b.width) * TILE_SIZE
+        b_top = DUNGEON_OFFSET_Y + room_b.y * TILE_SIZE
+        b_bottom = DUNGEON_OFFSET_Y + (room_b.y + room_b.height) * TILE_SIZE
+    
+        # Compare edge locations
+        if a_right + min_distance <= b_left:
+            return False
+    
+        if a_left - min_distance >= b_right:
+            return False
+    
+        if a_bottom + min_distance <= b_top:
+            return False
+    
+        if a_top - min_distance >= b_bottom:
+            return False
+    
+        return True

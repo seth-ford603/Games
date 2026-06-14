@@ -24,7 +24,7 @@ class DungeonRenderer:
 
         self.room_color = (80, 80, 80)
         self.current_room_color = (120, 160, 255)
-        self.connection_color = (200, 200, 200)
+        self.connection_color = (36, 36, 36)
         self.border_color = (255, 255, 255)
 
     def draw(self, dungeon):
