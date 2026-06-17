@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Jun  9 15:03:37 2026
+Created on:  20260609   
+Last Update: 20260617 
 
 @author: sford
 """
@@ -12,6 +13,11 @@ from GameConfig import SCREEN_WIDTH, SCREEN_HEIGHT, TILE_SIZE, DUNGEON_OFFSET_X,
 
 
 class DungeonGenerator:
+    
+    VALID_DONUT_MIN_DIST = 75
+    VALID_DONUT_MAX_DIST = 175
+    
+    MIN_VALID_DISTANCE_ALL_ROOMS = 5
     
     # Returns a Dungeon object
     def generate(self, theme="standard"):
@@ -81,7 +87,7 @@ class DungeonGenerator:
                 return None
     
             # Verify this room does not have connections that intersect with another connection
-            # Exit and restart if so by returning none
+            # Exit and restart if so by returning false
             if self.connection_intersects_connection(previous_room, new_room, rooms):
                 return None
     
@@ -196,55 +202,35 @@ class DungeonGenerator:
 
     # Returns false if two rects are overlapping
     def rooms_overlap(self, room_a, room_b):
-        # Define the edges of both rectangles
-        a_left = room_a.x
-        a_right = room_a.x + room_a.width
-        a_top = room_a.y
-        a_bottom = room_a.y + room_a.height
-
-        b_left = room_b.x
-        b_right = room_b.x + room_b.width
-        b_top = room_b.y
-        b_bottom = room_b.y + room_b.height
 
         # Check if opposite edges are overlapping
-        if a_right <= b_left:
+        if room_a.right_side_px <= room_b.left_side_px:
             return False
 
-        if a_left >= b_right:
+        if room_a.left_side_px >= room_b.right_side_px:
             return False
 
-        if a_bottom <= b_top:
+        if room_a.bottom_side_px <= room_b.top_side_px:
             return False
 
-        if a_top >= b_bottom:
+        if room_a.top_side_px >= room_b.bottom_side_px:
             return False
 
         return True
     
     # Returns false if two rects overlaps with screen edge
     def room_is_clipped(self, room):
-        # Convert locations to pixels
-        screen_x = DUNGEON_OFFSET_X + room.x * TILE_SIZE
-        screen_y = DUNGEON_OFFSET_Y + room.y * TILE_SIZE
-        screen_width = room.width * TILE_SIZE
-        screen_height = room.height * TILE_SIZE
-    
-        room_left = screen_x
-        room_right = screen_x + screen_width
-        room_top = screen_y
-        room_bottom = screen_y + screen_height
-    
-        if room_left < 0:
+        # Compare room edges to see if they exceed the window dimensions
+        if room.left_side_px < 0:
             return True
     
-        if room_top < 0:
+        if room.top_side_px < 0:
             return True
     
-        if room_right > SCREEN_WIDTH:
+        if room.right_side_px > SCREEN_WIDTH:
             return True
     
-        if room_bottom > SCREEN_HEIGHT:
+        if room.bottom_side_px > SCREEN_HEIGHT:
             return True
     
         return False
@@ -319,11 +305,11 @@ class DungeonGenerator:
 
     # Checks a single connection for intersections
     def connection_intersects_other_room(self, room_a, room_b, rooms):
-        start_x = room_a.center_x
-        start_y = room_a.center_y
+        start_x = room_a.x_px
+        start_y = room_a.y_px
         
-        end_x = room_b.center_x
-        end_y = room_b.center_y
+        end_x = room_b.x_px
+        end_y = room_b.y_px
     
         for room in rooms.values():
             if room == room_a or room == room_b:
@@ -338,6 +324,7 @@ class DungeonGenerator:
     def line_passes_through_room(self, start_x, start_y, end_x, end_y, room):
         sample_count = 100
     
+        # Check 100 points on the line and see if any of them are inside a room
         for i in range(sample_count + 1):
             progress = i / sample_count
     
@@ -351,13 +338,9 @@ class DungeonGenerator:
     
     # Returns true if a point is inside a room
     def point_inside_room(self, point_x, point_y, room):
-        room_left = room.x
-        room_right = room.x + room.width
-        room_top = room.y
-        room_bottom = room.y + room.height
-    
-        if point_x >= room_left and point_x <= room_right:
-            if point_y >= room_top and point_y <= room_bottom:
+        # Check the location of the point relative to the rooms walls
+        if point_x >= room.left_side_px and point_x <= room.right_side_px:
+            if point_y >= room.top_side_px and point_y <= room.bottom_side_px:
                 return True
     
         return False
@@ -372,130 +355,135 @@ class DungeonGenerator:
                 # Do not compare the connection against itself
                 if existing_room == room_a and connected_room == room_b:
                     continue
-    
                 if existing_room == room_b and connected_room == room_a:
                     continue
     
                 # Ignore connections that share an endpoint
                 if existing_room == room_a or existing_room == room_b:
                     continue
-    
                 if connected_room == room_a or connected_room == room_b:
                     continue
     
                 # Check if the lines intersect
                 if self.lines_intersect(
-                    room_a.center_x,
-                    room_a.center_y,
-                    room_b.center_x,
-                    room_b.center_y,
-                    existing_room.center_x,
-                    existing_room.center_y,
-                    connected_room.center_x,
-                    connected_room.center_y
+                    room_a.x_px,
+                    room_a.y_px,
+                    room_b.x_px,
+                    room_b.y_px,
+                    existing_room.x_px,
+                    existing_room.y_px,
+                    connected_room.x_px,
+                    connected_room.y_px
                 ):
                     return True
     
         return False
     
-    # Compares two lines. They intersect if their endpoints are on opposite sides of a line. 
+    # Compares two lines. They intersect if their endpoints are on opposite sides of the line we are checking for intersection. 
     # (If a line C-D bisects points A and B then there is an intersection)
     def lines_intersect(self, a_x, a_y, b_x, b_y, c_x, c_y, d_x, d_y):
         # Are A and B on opposite sides of line C-D?
-        position_1 = self.get_position(c_x, c_y, d_x, d_y, a_x, a_y)
-        position_2 = self.get_position(c_x, c_y, d_x, d_y, b_x, b_y)
         # Are C and D on opposite sides of line A-B?
-        position_3 = self.get_position(a_x, a_y, b_x, b_y, c_x, c_y)
-        position_4 = self.get_position(a_x, a_y, b_x, b_y, d_x, d_y)
+        
+        # Start by getting position of each
+        # Point A relative to line CD
+        position_a = self.get_position(c_x, c_y, d_x, d_y, a_x, a_y)
+        # Point B relative to line CD
+        position_b = self.get_position(c_x, c_y, d_x, d_y, b_x, b_y)
+        # Point C relative to line AB
+        position_c = self.get_position(a_x, a_y, b_x, b_y, c_x, c_y)
+        # Point D relative to line AB
+        position_d = self.get_position(a_x, a_y, b_x, b_y, d_x, d_y)
     
         # If positions are not the same, then an intersection exists
-        if position_1 != position_2 and position_3 != position_4:
+        if position_a != position_b and position_c != position_d:
             return True
     
         return False
     
     # Gets the position of a point relative to a line.
     # Two points that both return the same value are on the same side of the provided line.
+    # This uses 2D cross product math
     def get_position(self, line_start_x, line_start_y, line_end_x, line_end_y, point_x, point_y):
-        value = (
-            (point_y - line_start_y) * (line_end_x - line_start_x)
-            - (line_end_y - line_start_y) * (point_x - line_start_x)
-        )
+        # Line A = (line_start_x, line_start_y)
+        # Line B = (line_end_x, line_end_y)
+        # Test Point P = (point_x, point_y)
+        
+        # Vector AB
+        AB_x = line_end_x - line_start_x
+        AB_y = line_end_y - line_start_y
+        
+        # Vector AP
+        AP_x = point_x - line_start_x
+        AP_y = point_y - line_start_y
+        
+        # Find the 2D cross product
+        value = AP_y * AB_x - AB_y * AP_x
     
+        # If the cross product is pos, then dot is on pos side of line
         if value > 0:
             return 1
     
+        # If the cross product is neg, then dot is on neg side of line
         if value < 0:
             return -1
     
+        # If the cross product is 0, then dot is directly on the line
         return 0
     
     # Returns true if test_room location is with a donut shaped valid area for placement
     # min_distance and max_distance control this valid area
     def room_is_valid_distance_from_parent(self, test_room, parent_room):
-        # Set min/max distances
-        min_distance = 75
-        max_distance = 175
-    
-        # test_room.center_x returns the center of the test room in tiles
-        # We need to convert this to pixels to measure distance in pixels
-        test_center_x = DUNGEON_OFFSET_X + test_room.center_x * TILE_SIZE
-        test_center_y = DUNGEON_OFFSET_Y + test_room.center_y * TILE_SIZE
-    
-        parent_center_x = DUNGEON_OFFSET_X + parent_room.center_x * TILE_SIZE
-        parent_center_y = DUNGEON_OFFSET_Y + parent_room.center_y * TILE_SIZE
+        # Retrieve min/max distances from class constants
+        min_distance = self.VALID_DONUT_MIN_DIST
+        max_distance = self.VALID_DONUT_MAX_DIST
     
         # Find distance with pyth theorem
         # For horiz and vert seperation
-        dx = test_center_x - parent_center_x
-        dy = test_center_y - parent_center_y
+        dx = test_room.x_px - parent_room.x_px
+        dy = test_room.y_px - parent_room.y_px
     
         # Square and add together then compare
-        distance_squared = dx * dx + dy * dy
+        distance_squared = (dx * dx) + (dy * dy)
     
         # Just square distance values for easier math
-        if distance_squared < min_distance * min_distance:
+        if distance_squared < (min_distance * min_distance):
             return False
     
-        if distance_squared > max_distance * max_distance:
+        if distance_squared > (max_distance * max_distance):
             return False
     
         return True
     
     # Returns false if test room is too close to any other room by checking room edges
     def room_is_minimum_distance_from_all_rooms(self, test_room, rooms):
-        min_distance = 5
+        # Retrieve min distance from class contants
+        min_distance = self.MIN_VALID_DISTANCE_ALL_ROOMS
     
+        # For each room in our room list...
         for existing_room in rooms.values():
+            # ...if the rooms are too close return false
             if self.rooms_are_too_close(test_room, existing_room, min_distance):
                 return False
-    
+        # ...otherwise return true
         return True
     
     # Returns false if two rooms are too close
     def rooms_are_too_close(self, room_a, room_b, min_distance):
-        # Convert sides to pixel locations
-        a_left = DUNGEON_OFFSET_X + room_a.x * TILE_SIZE
-        a_right = DUNGEON_OFFSET_X + (room_a.x + room_a.width) * TILE_SIZE
-        a_top = DUNGEON_OFFSET_Y + room_a.y * TILE_SIZE
-        a_bottom = DUNGEON_OFFSET_Y + (room_a.y + room_a.height) * TILE_SIZE
-    
-        b_left = DUNGEON_OFFSET_X + room_b.x * TILE_SIZE
-        b_right = DUNGEON_OFFSET_X + (room_b.x + room_b.width) * TILE_SIZE
-        b_top = DUNGEON_OFFSET_Y + room_b.y * TILE_SIZE
-        b_bottom = DUNGEON_OFFSET_Y + (room_b.y + room_b.height) * TILE_SIZE
-    
+       
         # Compare edge locations
-        if a_right + min_distance <= b_left:
+        # If left edge is farther left than other right edge, they overlap, repeat logic
+        if (room_a.right_side_px) + min_distance <= (room_b.left_side_px):
             return False
     
-        if a_left - min_distance >= b_right:
+        if (room_a.left_side_px) - min_distance >= (room_b.right_side_px):
             return False
     
-        if a_bottom + min_distance <= b_top:
+        if (room_a.bottom_side_px) + min_distance <= (room_b.top_side_px):
             return False
     
-        if a_top - min_distance >= b_bottom:
+        if (room_a.top_side_px) - min_distance >= (room_b.bottom_side_px):
             return False
-    
+        
         return True
+    
