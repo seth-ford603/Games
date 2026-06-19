@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on:  20260610   
-Last Update: 20260617 
-
-@author: sford
+Created on 20260610
+Updated on 20260619
+@author: Seth Ford
 """
 
 SCREEN_WIDTH = 1000

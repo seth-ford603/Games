@@ -1,15 +1,14 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Jun  8 15:27:01 2026
-
-@author: sford
+Created on 20260608
+Updated on 20260619
+@author: Seth Ford
 """
-
-#from abc import ABC, abstractmethod
-
 import sys
 import pygame
-from GameStates import MainMenuState
+# GamePackage
+from GamePackage.GameStates import MainMenuState
+# Main
 from GameConfig import SCREEN_WIDTH, SCREEN_HEIGHT
 
 FPS = 60
@@ -38,7 +37,7 @@ class StateManager:
     def draw(self, screen):
         self.current_state.draw(screen)
     
-    # SAVING STATE TO STACK METHODS
+    # SAVING STATE METHODS
     def push_state(self, new_state):
         new_state.previous_state = self.current_state
         self.current_state = new_state
