@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on 20260608
-Updated on 20260619
+Updated on 20260623
 @author: Seth Ford
 """
 
@@ -11,8 +11,10 @@ from DungeonPackage.DungeonFactory import DungeonFactory
 from DungeonPackage.DungeonRenderer import DungeonRenderer
 # GamePackage
 from GamePackage.GameUI import Button
+# CharacterPackage
+from CharacterPackage.Character import Character
 # Main
-from GameConfig import SCREEN_WIDTH, SCREEN_HEIGHT
+from GameConfig import SCREEN_WIDTH, SCREEN_HEIGHT, TILE_SIZE
 
 # Globals
 LIGHT_BLUE = (173, 216, 230)
@@ -203,9 +205,19 @@ class CharacterCreationState(GameState):
         # Parse event queue and handle
         for event in events:
             
-            # If start button pressed, navigate to execution state
+            # If start button pressed, navigate to execution state with:
+            # Dungeon and charater created in center of the start room
             if self.start_button.was_clicked(event):
-                self.game.state_manager.change_state(ExecutionState(self.game))
+                # Create dungeon and identify start room
+                dungeon = DungeonFactory().create_dungeon()
+            
+                # Create a new character
+                character = Character(0, 0)
+            
+                # Change states to execution state
+                self.game.state_manager.change_state(
+                    ExecutionState(self.game, dungeon, character)
+                )
             
             # If Reset button pressed, cycle bg color to simulate actions
             if self.reset_button.was_clicked(event):
@@ -261,7 +273,7 @@ class LoadGameState(GameState):
             
             # If load game button pressed, navigate to execution state
             if self.load_button.was_clicked(event):
-                self.game.state_manager.change_state(ExecutionState(self.game))
+                BACK_SELECT = 1 - BACK_SELECT
             
             # If Reset button pressed, cycle bg color to simulate actions
             if self.delete_button.was_clicked(event):
@@ -280,15 +292,27 @@ class LoadGameState(GameState):
 
 class ExecutionState(GameState):
     
-    def __init__(self, game):
+    def __init__(self, game, dungeon, character):        
         # Startup
         self.game = game
         self.font = pygame.font.SysFont(None, 36)
         pygame.display.set_caption("Execution State")
         
-        # Link DungeonRenderer
-        self.dungeon = None
+        # Dungeon Init
+        self.dungeon = dungeon
         self.dungeon_renderer = DungeonRenderer(self.game.screen)
+        self.room_border_color = (0, 0, 0)
+        
+        # Char Init
+        self.character = character
+        
+        # Get start room and its area
+        current_room = self.dungeon.get_current_room()
+        room_rect = self.get_current_room_rect(current_room)
+        
+        # Spawn character in center of room
+        self.character.x = room_rect.centerx - self.character.width / 2
+        self.character.y = room_rect.centery - self.character.height / 2
         
     def handle_events(self, events):
         
@@ -298,15 +322,58 @@ class ExecutionState(GameState):
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 self.game.state_manager.push_state(GameMenuState(self.game))
             
-            # IF key pressed is D, generate a dungeon
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_d:
+            # IF key pressed is X, generate a dungeon
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_x:
                 self.dungeon = DungeonFactory().create_dungeon()
-                
+
+    def update(self, dt):
+        keys = pygame.key.get_pressed()
+    
+        if keys[pygame.K_w]:
+            self.character.move_up(dt)
+    
+        if keys[pygame.K_s]:
+            self.character.move_down(dt)
+    
+        if keys[pygame.K_a]:
+            self.character.move_left(dt)
+    
+        if keys[pygame.K_d]:
+            self.character.move_right(dt)
+    
+        current_room = self.dungeon.get_current_room()
+        room_rect = self.get_current_room_rect(current_room)
+    
+        self.character.keep_inside_rect(room_rect)
+    
+    # Get the room dimensions
+    # Scale it up for ExecutionState since we are looking at it close up
+    # Also center it on the screen
+    def get_current_room_rect(self, room):
+        room_scale = 4
+    
+        room_width = room.width * TILE_SIZE * room_scale
+        room_height = room.height * TILE_SIZE * room_scale
+    
+        room_x = (SCREEN_WIDTH - room_width) // 2
+        room_y = (SCREEN_HEIGHT - room_height) // 2
+    
+        return pygame.Rect(
+            room_x,
+            room_y,
+            room_width,
+            room_height
+        )
+    
     def draw(self, screen):
         background_selector(screen)
-
-        if self.dungeon is not None:
-            self.dungeon_renderer.draw(self.dungeon)
+    
+        current_room = self.dungeon.get_current_room()
+        room_rect = self.get_current_room_rect(current_room)
+    
+        pygame.draw.rect(screen, self.room_border_color, room_rect, 4)
+    
+        self.character.draw(screen)
 
 
 class GameMenuState(GameState):
