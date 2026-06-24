@@ -325,8 +325,13 @@ class ExecutionState(GameState):
             # IF key pressed is X, generate a dungeon
             if event.type == pygame.KEYDOWN and event.key == pygame.K_x:
                 self.dungeon = DungeonFactory().create_dungeon()
+            
+            # If key pressed is M, show the dungeon map
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_m:
+                self.game.state_manager.push_state(MapState(self.game, self.dungeon))
 
     def update(self, dt):
+        # Control character with WASD
         keys = pygame.key.get_pressed()
     
         if keys[pygame.K_w]:
@@ -350,7 +355,7 @@ class ExecutionState(GameState):
     # Scale it up for ExecutionState since we are looking at it close up
     # Also center it on the screen
     def get_current_room_rect(self, room):
-        room_scale = 4
+        room_scale = 6
     
         room_width = room.width * TILE_SIZE * room_scale
         room_height = room.height * TILE_SIZE * room_scale
@@ -425,10 +430,46 @@ class GameMenuState(GameState):
             # If Quit button was pressed, close game
             if self.quit_button.was_clicked(event):
                 self.game.running = False
+            
+            # If ESC pressed, return to game
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                pygame.display.set_caption("Execution State")
+                self.game.state_manager.pop_state()
 
     def draw(self, screen):
         background_selector(screen)
 
         for button in self.buttons:
             button.draw(screen)
+
+class MapState(GameState):
+    
+    def __init__(self, game, dungeon):
+        # Startup
+        self.game = game
+        self.dungeon = dungeon
+        self.font = pygame.font.SysFont(None, 36)
+        pygame.display.set_caption("Map State")
+
+        self.dungeon_renderer = DungeonRenderer(self.game.screen)
+        
+    def handle_events(self, events):
+        
+        # Parse event queue and handle
+        for event in events:
+            # IF key pressed is ESC, pop MenuState off from state stack and return to game
+            if event.type == pygame.KEYDOWN and (event.key == pygame.K_ESCAPE or event.key == pygame.K_m):
+                pygame.display.set_caption("Execution State")
+                self.game.state_manager.pop_state()
+
+    def draw(self, screen):
+        # Clear Screen
+        background_selector(screen)
+        
+        # Retrieve current room
+        current_room = self.dungeon.get_current_room()
+    
+        # Draw the dungeon
+        self.dungeon_renderer.draw_connections(self.dungeon)
+        self.dungeon_renderer.draw_rooms(self.dungeon, current_room)
 

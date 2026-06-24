@@ -20,7 +20,7 @@ class Character:
         self.speed = 200
         self.color = (0, 255, 0)
 
-    # Character control
+    # Character control needs to be scaled for the FPS
     def move_up(self, dt):
         self.y -= self.speed * dt
 

@@ -31,8 +31,8 @@ class DungeonRenderer:
         self.draw_connections(dungeon)
         self.draw_rooms(dungeon)
 
-    def draw_rooms(self, dungeon):
-        current_room = dungeon.get_current_room()
+    def draw_rooms(self, dungeon, cur_room):
+        current_room = cur_room
 
         # Loop through each room in the dungeon
         for room in dungeon.rooms.values():
