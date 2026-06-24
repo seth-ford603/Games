@@ -3,3 +3,6 @@ GamePackage
 
 DungeonPackage
 - All files related to rooms, dungeons, and their factory.
+
+CharacterPackage
+- Character related items
