@@ -9,6 +9,7 @@ import pygame
 # DungeonPackage
 from DungeonPackage.DungeonFactory import DungeonFactory
 from DungeonPackage.DungeonRenderer import DungeonRenderer
+from DungeonPackage.Door import Door
 # GamePackage
 from GamePackage.GameUI import Button
 # CharacterPackage
@@ -370,14 +371,35 @@ class ExecutionState(GameState):
             room_height
         )
     
+    # Create/return a list of door objects for the current room.
+    # Append the current room_rect for future placment
+    def create_doors_for_current_room(self, current_room, room_rect):
+        doors = []
+    
+        for connected_room in current_room.connections:
+            door = Door(current_room, connected_room, room_rect)
+            doors.append(door)
+    
+        return doors
+    
     def draw(self, screen):
+        # Clear screen
         background_selector(screen)
     
+        # Get current room and its space(rect)
         current_room = self.dungeon.get_current_room()
         room_rect = self.get_current_room_rect(current_room)
     
+        # Draw the current room
         pygame.draw.rect(screen, self.room_border_color, room_rect, 4)
     
+        # Create doors
+        doors = self.create_doors_for_current_room(current_room, room_rect)
+        # Draw the doors
+        for door in doors:
+            door.draw(screen)
+    
+        # Draw the character
         self.character.draw(screen)
 
 
