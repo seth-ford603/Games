@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on 20260608
-Updated on 20260623
+Updated on 20260624
 @author: Seth Ford
 """
 
@@ -398,6 +398,26 @@ class ExecutionState(GameState):
         # Draw the doors
         for door in doors:
             door.draw(screen)
+            
+            # Make doors detectable
+            if self.character.get_rect().colliderect(door.rect):
+                print("Door touched:", door.direction, "->", door.target_room.room_id)
+        
+        # Create surface to write room id to screen
+        room_text = self.font.render(
+            f"Room: {current_room.room_id}",
+            True,
+            (255, 255, 255)
+        )
+        # Create surface to write room type to screen
+        type_text = self.font.render(
+            f"Type: {current_room.room_type}",
+            True,
+            (255, 255, 255)
+        )
+        # Write room and type to screen
+        screen.blit(room_text, (20, 20))
+        screen.blit(type_text, (20, 50))
     
         # Draw the character
         self.character.draw(screen)
