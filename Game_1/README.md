@@ -16,6 +16,7 @@ DUNGEONGAME is currently in the core systems prototyping phase. The focus is on 
 * Character spawning within dungeons
 * In-game map overlay
 * State stack navigation (push/pop states)
+* Room-to-room dungeon navigation
 
 ## Architecture Overview
 
@@ -82,6 +83,3 @@ This allows gameplay states to be paused and resumed without recreation.
 * Object-Oriented Design
 * State Machine Architecture
 * Procedural Content Generation
-
-```
-```
