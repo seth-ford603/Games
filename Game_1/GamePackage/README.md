@@ -52,6 +52,16 @@ Provides:
 * Mouse click detection
 * Consistent UI behavior across states
 
+### Camera
+
+Responsible for controlling the player's view of the current room.
+The camera operates independently of the character and determines which portion of the room is visible on screen.
+
+Key Concepts:
+* World Coordinates – The true location of game objects within a room.
+* Screen Coordinates – Where those objects are drawn on the player's display.
+* Dead-Zone – An invisible rectangle surrounding the player. The camera remains stationary while the player moves inside this area. Once the player reaches an edge, the camera follows until the player is once again inside the dead-zone.
+
 ---
 
 ## Implemented States
