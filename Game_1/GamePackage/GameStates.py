@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on 20260608
-Updated on 20260624
+Updated on 20260701
 @author: Seth Ford
 """
 
@@ -347,9 +347,9 @@ class ExecutionState(GameState):
         if keys[pygame.K_d]:
             self.character.move_right(dt)
     
+        # Ensure char stays within walls of room
         current_room = self.dungeon.get_current_room()
         room_rect = self.get_current_room_rect(current_room)
-    
         self.character.keep_inside_rect(room_rect)
     
     # Get the room dimensions
@@ -382,6 +382,53 @@ class ExecutionState(GameState):
     
         return doors
     
+    # Place the character at a specific position in a room based on the door they entered
+    def place_character_after_room_transition(self, entered_door):
+        # Get the new room after movement
+        current_room = self.dungeon.get_current_room()
+        room_rect = self.get_current_room_rect(current_room)
+    
+        # Distance from the wall after entering the new room
+        padding = 30
+    
+        # Center character horizontally/vertically as needed
+        center_x = room_rect.centerx - self.character.width / 2
+        center_y = room_rect.centery - self.character.height / 2
+    
+        # If player exited through a north door,
+        # they should appear near the south side of the new room
+        if entered_door.direction == "north":
+            self.character.x = center_x
+            self.character.y = room_rect.bottom - self.character.height - padding
+    
+        # If player exited through a south door,
+        # they should appear near the north side of the new room
+        elif entered_door.direction == "south":
+            self.character.x = center_x
+            self.character.y = room_rect.top + padding
+    
+        # If player exited through an east door,
+        # they should appear near the west side of the new room
+        elif entered_door.direction == "east":
+            self.character.x = room_rect.left + padding
+            self.character.y = center_y
+    
+        # If player exited through a west door,
+        # they should appear near the east side of the new room
+        elif entered_door.direction == "west":
+            self.character.x = room_rect.right - self.character.width - padding
+            self.character.y = center_y
+    
+    # Transitions rooms if a connection is detected
+    # The door provided may/may not have a connection attribute defined (future flex)
+    def try_enter_door(self, door):
+        # Try to move to the room connected to this door
+        moved = self.dungeon.move_to_room(door.target_room)
+    
+        # If the move succeeded, reposition the character
+        if moved:
+            self.place_character_after_room_transition(door)
+    
     def draw(self, screen):
         # Clear screen
         background_selector(screen)
@@ -399,9 +446,13 @@ class ExecutionState(GameState):
         for door in doors:
             door.draw(screen)
             
-            # Make doors detectable
+            # If character touches a door, move to the connected room
+            # If char tocuhes door rect...
             if self.character.get_rect().colliderect(door.rect):
-                print("Door touched:", door.direction, "->", door.target_room.room_id)
+                # ...attempt to open door
+                self.try_enter_door(door)
+                # Dont process other doors in loop...break
+                break
         
         # Create surface to write room id to screen
         room_text = self.font.render(
