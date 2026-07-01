@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on 20260623
-Updated on 20260623
+Updated on 20260701
 @author: Seth Ford
 """
 
@@ -56,5 +56,10 @@ class Character:
             self.y = boundary_rect.bottom - self.height
 
     # Draw the character to the screen
-    def draw(self, screen):
-        pygame.draw.rect(screen, self.color, self.get_rect())
+    def draw(self, screen, camera=None):
+        character_rect = self.get_rect()
+    
+        if camera is not None:
+            character_rect = camera.apply_rect(character_rect)
+    
+        pygame.draw.rect(screen, self.color, character_rect)

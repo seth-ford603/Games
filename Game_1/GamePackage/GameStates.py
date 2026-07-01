@@ -12,6 +12,7 @@ from DungeonPackage.DungeonRenderer import DungeonRenderer
 from DungeonPackage.Door import Door
 # GamePackage
 from GamePackage.GameUI import Button
+from GamePackage.Camera import Camera
 # CharacterPackage
 from CharacterPackage.Character import Character
 # Main
@@ -307,6 +308,9 @@ class ExecutionState(GameState):
         # Char Init
         self.character = character
         
+        # Camera Init
+        self.camera = Camera()
+        
         # Get start room and its area
         current_room = self.dungeon.get_current_room()
         room_rect = self.get_current_room_rect(current_room)
@@ -314,6 +318,9 @@ class ExecutionState(GameState):
         # Spawn character in center of room
         self.character.x = room_rect.centerx - self.character.width / 2
         self.character.y = room_rect.centery - self.character.height / 2
+        
+        # Center camera on character at start
+        self.camera.update(self.character.get_rect(), room_rect)
         
     def handle_events(self, events):
         
@@ -351,12 +358,15 @@ class ExecutionState(GameState):
         current_room = self.dungeon.get_current_room()
         room_rect = self.get_current_room_rect(current_room)
         self.character.keep_inside_rect(room_rect)
+        
+        # Update camera after character movement
+        self.camera.update(self.character.get_rect(), room_rect)
     
     # Get the room dimensions
     # Scale it up for ExecutionState since we are looking at it close up
     # Also center it on the screen
     def get_current_room_rect(self, room):
-        room_scale = 6
+        room_scale = 14
     
         room_width = room.width * TILE_SIZE * room_scale
         room_height = room.height * TILE_SIZE * room_scale
@@ -419,6 +429,9 @@ class ExecutionState(GameState):
             self.character.x = room_rect.right - self.character.width - padding
             self.character.y = center_y
     
+        # Move camera to match the character's new position in the new room
+        self.camera.update(self.character.get_rect(), room_rect)
+    
     # Transitions rooms if a connection is detected
     # The door provided may/may not have a connection attribute defined (future flex)
     def try_enter_door(self, door):
@@ -437,14 +450,15 @@ class ExecutionState(GameState):
         current_room = self.dungeon.get_current_room()
         room_rect = self.get_current_room_rect(current_room)
     
-        # Draw the current room
-        pygame.draw.rect(screen, self.room_border_color, room_rect, 4)
+        # Draw the current room through the camera object
+        screen_room_rect = self.camera.apply_rect(room_rect)
+        pygame.draw.rect(screen, self.room_border_color, screen_room_rect, 4)
     
         # Create doors
         doors = self.create_doors_for_current_room(current_room, room_rect)
         # Draw the doors
         for door in doors:
-            door.draw(screen)
+            door.draw(screen, self.camera)
             
             # If character touches a door, move to the connected room
             # If char tocuhes door rect...
@@ -471,7 +485,7 @@ class ExecutionState(GameState):
         screen.blit(type_text, (20, 50))
     
         # Draw the character
-        self.character.draw(screen)
+        self.character.draw(screen, self.camera)
 
 
 class GameMenuState(GameState):

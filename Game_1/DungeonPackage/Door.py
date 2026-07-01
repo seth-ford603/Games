@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on 20260624
-Updated on 20260624
+Updated on 20260701
 @author: Seth Ford
 """
 
@@ -130,5 +130,12 @@ class Door:
                 self.height
             )
 
-    def draw(self, screen):
-        pygame.draw.rect(screen, self.color, self.rect)
+    def draw(self, screen, camera=None):
+        door_rect = self.rect
+        
+        # If camera exists, render using that class
+        if camera is not None:
+            door_rect = camera.apply_rect(door_rect)
+    
+        # otherwise render normally
+        pygame.draw.rect(screen, self.color, door_rect)
