@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
 """
 Created on 20260608
-Updated on 20260701
+Updated on 20260702
 @author: Seth Ford
 """
 
@@ -10,6 +9,7 @@ import pygame
 from DungeonPackage.DungeonFactory import DungeonFactory
 from DungeonPackage.DungeonRenderer import DungeonRenderer
 from DungeonPackage.Door import Door
+from DungeonPackage.RoomRenderer import RoomRenderer
 # GamePackage
 from GamePackage.GameUI import Button
 from GamePackage.Camera import Camera
@@ -303,6 +303,7 @@ class ExecutionState(GameState):
         # Dungeon Init
         self.dungeon = dungeon
         self.dungeon_renderer = DungeonRenderer(self.game.screen)
+        self.room_renderer = RoomRenderer("assets/stone_floor.png")
         self.room_border_color = (0, 0, 0)
         
         # Char Init
@@ -450,7 +451,10 @@ class ExecutionState(GameState):
         current_room = self.dungeon.get_current_room()
         room_rect = self.get_current_room_rect(current_room)
     
-        # Draw the current room through the camera object
+        # Draw the room floor
+        self.room_renderer.draw_floor(screen, room_rect, self.camera)
+        
+        # Draw the current room border
         screen_room_rect = self.camera.apply_rect(room_rect)
         pygame.draw.rect(screen, self.room_border_color, screen_room_rect, 4)
     
