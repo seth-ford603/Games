@@ -10,5 +10,6 @@ The package is split into five main files:
 - `DungeonFactory.py` acts as the entry point for dungeon creation. It creates a `DungeonGenerator` and returns a generated dungeon.
 - `DungeonGenerator.py` builds a random dungeon by creating a start room, generating a main path, adding branch rooms, validating spacing/intersections, and assigning a boss room.
 - `DungeonRenderer.py` draws the dungeon using Pygame, including room rectangles, room labels, room connections, and a highlight for the current room.
+- `RoomRenderer.py` draws a given room obj using Pygame. Contains no behavior for the rooms, only visuals.
 
 Overall, the package separates dungeon logic from the main game loop. The game asks the factory for a dungeon, the generator builds the dungeon structure, the `Dungeon` object stores and manages that structure, and the renderer displays it on screen.
