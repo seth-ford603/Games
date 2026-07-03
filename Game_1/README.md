@@ -17,6 +17,7 @@ DUNGEONGAME is currently in the core systems prototyping phase. The focus is on 
 * In-game map overlay
 * State stack navigation (push/pop states)
 * Room-to-room dungeon navigation
+* Dead-zone camera
 
 ## Architecture Overview
 
@@ -24,18 +25,12 @@ The project is built using Python and Pygame with a state-machine driven archite
 
 ### Core Components
 
-| Component        | Responsibility                                           |
-| ---------------- | -------------------------------------------------------- |
-| Game             | Owns the main loop, window, clock, and runtime lifecycle |
-| StateManager     | Controls state transitions and state stack operations    |
-| GameState        | Base class for all game states                           |
-| Button           | Shared UI component for menus and interactions           |
-| DungeonFactory   | Creates dungeon instances                                |
-| DungeonGenerator | Procedurally generates dungeon layouts                   |
-| Dungeon          | Stores rooms, connections, and current location          |
-| Room             | Represents individual dungeon nodes                      |
-| DungeonRenderer  | Handles dungeon visualization                            |
-| Character        | Represents the player's in-game character                |
+| package          | Responsibility                                                   |
+| ---------------- | ---------------------------------------------------------------- |
+| DungeonPackage   | All components related to dungeon creation                       |
+| GamePackage      | All components related to game control like states and interface |
+| WorldPackage     | All components related to the world outside the dungeon          |
+| CharacterPacakge | All components related to characters                             |
 
 ## State Management
 
