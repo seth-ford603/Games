@@ -1,6 +1,6 @@
 """
 Created on 20260608
-Updated on 20260702
+Updated on 20260703
 @author: Seth Ford
 """
 
@@ -304,7 +304,6 @@ class ExecutionState(GameState):
         self.dungeon = dungeon
         self.dungeon_renderer = DungeonRenderer(self.game.screen)
         self.room_renderer = RoomRenderer("assets/stone_floor.png")
-        self.room_border_color = (0, 0, 0)
         
         # Char Init
         self.character = character
@@ -359,6 +358,16 @@ class ExecutionState(GameState):
         current_room = self.dungeon.get_current_room()
         room_rect = self.get_current_room_rect(current_room)
         self.character.keep_inside_rect(room_rect)
+        
+        # Create doors for the current room
+        doors = self.create_doors_for_current_room(current_room, room_rect)
+        
+        # Check if character entered a door
+        self.handle_door_collision(doors)
+        
+        # Refresh current room and room rect in case door collision changed rooms
+        current_room = self.dungeon.get_current_room()
+        room_rect = self.get_current_room_rect(current_room)
         
         # Update camera after character movement
         self.camera.update(self.character.get_rect(), room_rect)
@@ -443,6 +452,18 @@ class ExecutionState(GameState):
         if moved:
             self.place_character_after_room_transition(door)
     
+    def handle_door_collision(self, doors):
+        
+        # Check each door for collision with the character
+        for door in doors:
+            
+            # Collision uses world coordinates, not screen coordinates
+            if self.character.get_rect().colliderect(door.rect):
+                # Attempt to enter the connected room
+                self.try_enter_door(door)
+                # Stop checking old doors after room transition
+                break
+    
     def draw(self, screen):
         # Clear screen
         background_selector(screen)
@@ -451,39 +472,29 @@ class ExecutionState(GameState):
         current_room = self.dungeon.get_current_room()
         room_rect = self.get_current_room_rect(current_room)
     
-        # Draw the room floor
-        self.room_renderer.draw_floor(screen, room_rect, self.camera)
-        
-        # Draw the current room border
-        screen_room_rect = self.camera.apply_rect(room_rect)
-        pygame.draw.rect(screen, self.room_border_color, screen_room_rect, 4)
-    
         # Create doors
         doors = self.create_doors_for_current_room(current_room, room_rect)
-        # Draw the doors
-        for door in doors:
-            door.draw(screen, self.camera)
-            
-            # If character touches a door, move to the connected room
-            # If char tocuhes door rect...
-            if self.character.get_rect().colliderect(door.rect):
-                # ...attempt to open door
-                self.try_enter_door(door)
-                # Dont process other doors in loop...break
-                break
-        
+    
+        # Draw room
+        self.room_renderer.draw_room(screen, room_rect, self.camera)
+    
+        # Draw doors
+        self.room_renderer.draw_doors(screen, doors, self.camera)
+    
         # Create surface to write room id to screen
         room_text = self.font.render(
             f"Room: {current_room.room_id}",
             True,
             (255, 255, 255)
         )
+    
         # Create surface to write room type to screen
         type_text = self.font.render(
             f"Type: {current_room.room_type}",
             True,
             (255, 255, 255)
         )
+    
         # Write room and type to screen
         screen.blit(room_text, (20, 20))
         screen.blit(type_text, (20, 50))
