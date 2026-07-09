@@ -1,6 +1,6 @@
 """
 Created on 20260608
-Updated on 20260703
+Updated on 20260709
 @author: Seth Ford
 """
 
@@ -360,6 +360,12 @@ class ExecutionState(GameState):
         # Keep character inside the world
         world_rect = self.world.get_rect()
         self.character.keep_inside_rect(world_rect)
+        
+        # Check if character touched a dungeon entrance
+        for entrance in self.world.get_dungeon_entrances():
+            if entrance.is_touched_by(self.character):
+                print("Dungeon entrance touched")
+                break
 
         # Update camera after character movement
         self.camera.update(self.character.get_rect(), world_rect)
@@ -373,6 +379,9 @@ class ExecutionState(GameState):
 
         # Draw world
         self.world_renderer.draw_world(screen, world_rect, self.camera)
+        
+        # Draw dungeon entrances
+        self.world_renderer.draw_dungeon_entrances(screen, self.world.get_dungeon_entrances(), self.camera)
 
         # Debug text
         world_text = self.font.render(
