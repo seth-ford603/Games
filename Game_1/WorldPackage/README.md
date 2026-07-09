@@ -11,3 +11,7 @@ Represents the playable world and defines its boundaries. It is responsible for 
 ### WorldRenderer
 Responsible for rendering the world. 
 The renderer tiles the `grassy_area.png` texture across the entire world and draws it relative to the camera, allowing the player to freely explore a world much larger than the game window.
+
+### DungeonEntrance
+Responsible for detecting when the user enters the dungeon. 
+Just a colored rect that can draw itself to the screen and detect collisions.
