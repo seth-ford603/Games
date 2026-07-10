@@ -1,6 +1,6 @@
 """
 Created on 20260608
-Updated on 20260709
+Updated on 20260710
 @author: Seth Ford
 """
 
@@ -9,8 +9,6 @@ import pygame
 # DungeonPackage
 from DungeonPackage.DungeonFactory import DungeonFactory
 from DungeonPackage.DungeonRenderer import DungeonRenderer
-from DungeonPackage.Door import Door
-from DungeonPackage.RoomRenderer import RoomRenderer
 
 # GamePackage
 from GamePackage.GameUI import Button
@@ -21,10 +19,13 @@ from CharacterPackage.Character import Character
 
 # WorldPackage
 from WorldPackage.World import World
-from WorldPackage.WorldRenderer import WorldRenderer
+
+# ControllerPackage
+from ControllerPackage.WorldController import WorldController
+from ControllerPackage.DungeonController import DungeonController
 
 # Main
-from GameConfig import SCREEN_WIDTH, SCREEN_HEIGHT, TILE_SIZE, WORLD_WIDTH, WORLD_HEIGHT
+from GameConfig import SCREEN_WIDTH, SCREEN_HEIGHT, WORLD_WIDTH, WORLD_HEIGHT
 
 # Globals
 LIGHT_BLUE = (173, 216, 230)
@@ -302,40 +303,24 @@ class LoadGameState(GameState):
         for button in self.buttons:
             button.draw(screen)
 
-
 class ExecutionState(GameState):
 
     def __init__(self, game, world, character):
         # Startup
         self.game = game
-        self.font = pygame.font.SysFont(None, 36)
         pygame.display.set_caption("Execution State")
 
-        # World Init
-        self.world = world
-        self.world_renderer = WorldRenderer("assets/grassy_area.png")
-
-        # Character Init
+        # Shared gameplay objects
         self.character = character
-
-        # Camera Init
         self.camera = Camera()
-        
-        # Area tracking
-        self.current_area = "world"
-        self.dungeon = None
-        self.room_renderer = RoomRenderer("assets/stone_floor.png")
 
-        # Get world boundary
-        world_rect = self.world.get_rect()
-
-        # Spawn character in center of world
-        spawn_x, spawn_y = self.world.get_spawn_position(self.character)
-        self.character.x = spawn_x
-        self.character.y = spawn_y
-
-        # Center camera on character at start
-        self.camera.update(self.character.get_rect(), world_rect)
+        # Begin gameplay in the world
+        self.active_controller = WorldController(
+            world,
+            self.character,
+            self.camera
+        )
+        self.active_controller.enter()
 
     def handle_events(self, events):
 
@@ -345,208 +330,70 @@ class ExecutionState(GameState):
             # If ESC pressed, push GameMenuState on top of execution state
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 self.game.state_manager.push_state(GameMenuState(self.game))
-                
-            # If key pressed is X, generate a new dungeon
+
+            # If X is pressed while in a dungeon, generate a new dungeon
             if event.type == pygame.KEYDOWN and event.key == pygame.K_x:
-                if self.current_area == "dungeon":
-                    self.enter_dungeon()
-            
-            # If key pressed is M, show the dungeon map
+                if isinstance(self.active_controller, DungeonController):
+                    self.enter_new_dungeon()
+
+            # If M is pressed while in a dungeon, show the dungeon map
             if event.type == pygame.KEYDOWN and event.key == pygame.K_m:
-                if self.current_area == "dungeon":
-                    self.game.state_manager.push_state(MapState(self.game, self.dungeon))
+                if isinstance(self.active_controller, DungeonController):
+                    self.game.state_manager.push_state(
+                        MapState(
+                            self.game,
+                            self.active_controller.dungeon
+                        )
+                    )
 
     def update(self, dt):
-        # Control character with WASD
-        keys = pygame.key.get_pressed()
-    
-        if keys[pygame.K_w]:
-            self.character.move_up(dt)
-    
-        if keys[pygame.K_s]:
-            self.character.move_down(dt)
-    
-        if keys[pygame.K_a]:
-            self.character.move_left(dt)
-    
-        if keys[pygame.K_d]:
-            self.character.move_right(dt)
-    
-        if self.current_area == "world":
-            self.update_world()
-    
-        elif self.current_area == "dungeon":
-            self.update_dungeon()
+        self.handle_character_movement(dt)
+
+        # Let the active controller perform area-specific gameplay
+        requested_transition = self.active_controller.update(dt)
+
+        # ExecutionState remains responsible for switching controllers
+        if requested_transition == "dungeon":
+            self.enter_new_dungeon()
 
     def draw(self, screen):
         background_selector(screen)
-    
-        if self.current_area == "world":
-            self.draw_world(screen)
-    
-        elif self.current_area == "dungeon":
-            self.draw_dungeon(screen)
-    
+
+        # Draw the current world or dungeon
+        self.active_controller.draw(screen)
+
+        # The character remains shared across all controllers
         self.character.draw(screen, self.camera)
 
-    def enter_dungeon(self):
-        # Create a new dungeon
-        self.dungeon = DungeonFactory().create_dungeon()
-    
-        # Switch current area
-        self.current_area = "dungeon"
-    
-        # Get starting room
-        current_room = self.dungeon.get_current_room()
-        room_rect = self.get_current_room_rect(current_room)
-    
-        # Spawn character in center of dungeon start room
-        self.character.x = room_rect.centerx - self.character.width / 2
-        self.character.y = room_rect.centery - self.character.height / 2
-    
-        # Move camera to dungeon room
-        self.camera.update(self.character.get_rect(), room_rect)
-    
-    def get_current_room_rect(self, room):
-        room_scale = 14
-    
-        room_width = room.width * TILE_SIZE * room_scale
-        room_height = room.height * TILE_SIZE * room_scale
-    
-        room_x = (SCREEN_WIDTH - room_width) // 2
-        room_y = (SCREEN_HEIGHT - room_height) // 2
-    
-        return pygame.Rect(
-            room_x,
-            room_y,
-            room_width,
-            room_height
-        )
-        
-    def create_doors_for_current_room(self, current_room, room_rect):
-        doors = []
-    
-        for connected_room in current_room.connections:
-            door = Door(current_room, connected_room, room_rect)
-            doors.append(door)
-    
-        return doors
-        
-    def place_character_after_room_transition(self, entered_door):
-        current_room = self.dungeon.get_current_room()
-        room_rect = self.get_current_room_rect(current_room)
-    
-        padding = 30
-    
-        center_x = room_rect.centerx - self.character.width / 2
-        center_y = room_rect.centery - self.character.height / 2
-    
-        if entered_door.direction == "north":
-            self.character.x = center_x
-            self.character.y = room_rect.bottom - self.character.height - padding
-    
-        elif entered_door.direction == "south":
-            self.character.x = center_x
-            self.character.y = room_rect.top + padding
-    
-        elif entered_door.direction == "east":
-            self.character.x = room_rect.left + padding
-            self.character.y = center_y
-    
-        elif entered_door.direction == "west":
-            self.character.x = room_rect.right - self.character.width - padding
-            self.character.y = center_y
-    
-        self.camera.update(self.character.get_rect(), room_rect)
-        
-    def try_enter_door(self, door):
-        moved = self.dungeon.move_to_room(door.target_room)
-    
-        if moved:
-            self.place_character_after_room_transition(door)
-        
-    def handle_door_collision(self, doors):
-        for door in doors:
-            if self.character.get_rect().colliderect(door.rect):
-                self.try_enter_door(door)
-                break
+    def handle_character_movement(self, dt):
+        # Control character with WASD
+        keys = pygame.key.get_pressed()
 
-    def update_world(self):
-        world_rect = self.world.get_rect()
-        self.character.keep_inside_rect(world_rect)
-    
-        for entrance in self.world.get_dungeon_entrances():
-            if entrance.is_touched_by(self.character):
-                self.enter_dungeon()
-                return
-    
-        self.camera.update(self.character.get_rect(), world_rect)
-        
-    def update_dungeon(self):
-        current_room = self.dungeon.get_current_room()
-        room_rect = self.get_current_room_rect(current_room)
-    
-        self.character.keep_inside_rect(room_rect)
-    
-        doors = self.create_doors_for_current_room(current_room, room_rect)
-        self.handle_door_collision(doors)
-    
-        current_room = self.dungeon.get_current_room()
-        room_rect = self.get_current_room_rect(current_room)
-    
-        self.camera.update(self.character.get_rect(), room_rect)
-        
-    def draw_world(self, screen):
-        world_rect = self.world.get_rect()
-    
-        self.world_renderer.draw_world(screen, world_rect, self.camera)
-    
-        self.world_renderer.draw_dungeon_entrances(
-            screen,
-            self.world.get_dungeon_entrances(),
+        if keys[pygame.K_w]:
+            self.character.move_up(dt)
+
+        if keys[pygame.K_s]:
+            self.character.move_down(dt)
+
+        if keys[pygame.K_a]:
+            self.character.move_left(dt)
+
+        if keys[pygame.K_d]:
+            self.character.move_right(dt)
+
+    def enter_new_dungeon(self):
+        # Generate the dungeon data
+        dungeon = DungeonFactory().create_dungeon()
+
+        # Replace the active controller
+        self.active_controller = DungeonController(
+            dungeon,
+            self.character,
             self.camera
         )
-    
-        world_text = self.font.render(
-            "Area: World",
-            True,
-            (255, 255, 255)
-        )
-    
-        position_text = self.font.render(
-            f"X: {int(self.character.x)} Y: {int(self.character.y)}",
-            True,
-            (255, 255, 255)
-        )
-    
-        screen.blit(world_text, (20, 20))
-        screen.blit(position_text, (20, 50))
-    
-    
-    def draw_dungeon(self, screen):
-        current_room = self.dungeon.get_current_room()
-        room_rect = self.get_current_room_rect(current_room)
-    
-        doors = self.create_doors_for_current_room(current_room, room_rect)
-    
-        self.room_renderer.draw_room(screen, room_rect, self.camera)
-        self.room_renderer.draw_doors(screen, doors, self.camera)
-    
-        room_text = self.font.render(
-            f"Room: {current_room.room_id}",
-            True,
-            (255, 255, 255)
-        )
-    
-        type_text = self.font.render(
-            f"Type: {current_room.room_type}",
-            True,
-            (255, 255, 255)
-        )
-    
-        screen.blit(room_text, (20, 20))
-        screen.blit(type_text, (20, 50))
 
+        # Let the new controller prepare its room, character, and camera
+        self.active_controller.enter()
 class GameMenuState(GameState):
     
     def __init__(self, game):
