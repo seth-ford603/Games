@@ -20,12 +20,10 @@ Abstract base class defining the common interface shared by all gameplay control
 ### `WorldController`
 Controls gameplay while the player is exploring the world.
 
-Responsibilities include:
+Unique Responsibilities include:
 * World updates
 * World rendering
 * Dungeon entrance detection
-* Character spawning
-* Camera updates
 
 ### `DungeonController`
 Controls gameplay while the player is inside a dungeon.
@@ -34,6 +32,4 @@ Responsibilities include:
 * Room management
 * Door creation and collision
 * Room transitions
-* Character spawning
 * Dungeon rendering
-* Camera updates
