@@ -28,7 +28,7 @@ Unique Responsibilities include:
 ### `DungeonController`
 Controls gameplay while the player is inside a dungeon.
 
-Responsibilities include:
+Unique Responsibilities include:
 * Room management
 * Door creation and collision
 * Room transitions
